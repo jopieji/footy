@@ -1,11 +1,9 @@
-use tokio::time;
+use std::env;
+use std::process;
+
 use log::Level;
 
-async fn run() {
-    log::info!("Sleeping");
-    time::sleep(time::Duration::from_secs(1)).await;
-    log::info!("Awake!");
-}
+use footy::Command;
 
 fn main() {
     println!("\nGlobal football CLI\n============================\n");
@@ -13,9 +11,13 @@ fn main() {
     simple_logger::init_with_level(Level::Info).unwrap();
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let future = run();
+
+    let command = Command::build(env::args()).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    let future = footy::run(command);
 
     rt.block_on(future);
-
-    // can concurrently make requests using tokio::join!() macro with all necessary function calls as arguments
 }
