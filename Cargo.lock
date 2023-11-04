@@ -195,6 +195,8 @@ dependencies = [
  "futures",
  "log",
  "reqwest",
+ "serde",
+ "serde_json",
  "simple_logger",
  "tokio",
 ]
