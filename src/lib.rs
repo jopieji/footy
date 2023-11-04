@@ -1,8 +1,11 @@
-use dotenv::dotenv;
 use std::env;
+
 use chrono::{DateTime, Utc};
+
 use reqwest::Client;
 use reqwest::Error;
+
+const BASE_URL: &str = "https://api-football-v1.p.rapidapi.com/v3/fixtures?league=61&";
 
 #[derive(Debug)]
 pub enum CommandType {
@@ -71,9 +74,6 @@ fn match_result(result: Result<String, String>) {
     }
 }
 
-// API CALLS
-// host: https://api-football-v1.p.rapidapi.com
-
 // will pull params from environment using Settings struct
 
 // TODO: function for calling scores endpoint
@@ -81,11 +81,9 @@ fn match_result(result: Result<String, String>) {
 
 // TODO: function for calling schedule endpoint
 async fn get_schedule() -> Result<String, Error> {
-    let date = get_today_date().await;
-    let key = std::env::var("FOOTY_API_KEY").unwrap();
-    let base_url = String::from("https://api-football-v1.p.rapidapi.com/v3/fixtures?date=");
-    let url = base_url + &date;
+    let key = env::var("FOOTY_API_KEY").unwrap();
     let client = Client::new();
+    let url = get_fixtures_url().await;
     let response = client.get(url).header("X-RapidAPI-KEY", key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
     dbg!(&response);
     let body = response.text().await?;
@@ -98,6 +96,13 @@ async fn get_today_date() -> String {
     let now: DateTime<Utc> = Utc::now();
     let formatted_date = now.format("%Y-%m-%d").to_string();
     formatted_date
+}
+
+async fn get_fixtures_url() -> String {
+    let date = get_today_date().await;
+    let season = &date[0..4];
+
+    format!("{}season={}&date={}", BASE_URL, season, date)
 }
 
 /*
