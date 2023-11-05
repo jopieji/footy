@@ -6,7 +6,7 @@ use log::Level;
 use footy::Command;
 
 fn main() {
-    println!("\nGlobal football CLI\n============================\n");
+    println!("\nGlobal Football CLI\n============================");
 
     simple_logger::init_with_level(Level::Info).unwrap();
 
