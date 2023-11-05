@@ -20,8 +20,10 @@ Currently, the app only supports the schedule functionality. Scores and teams su
 Also, it is hard coded to my favorite leagues, and only displays today's fixtures. This will be updated to be more customizable in the coming weeks.
 
 ### Commands
-`footy scores` will return scores of your favorite teams, which can be configured via the CLI
+`footy scores` will display scores of your favorite teams, which can be configured via the CLI
 
-`footy schedule` will return a schedule of today's fixtures
+`footy schedule` will display a schedule of today's fixtures for your favorite leagues
+
+`footy live` will display live scores of matches for you full list of leagues
 
 `footy teams` will open up a teams configuration portal
