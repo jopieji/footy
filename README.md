@@ -2,10 +2,17 @@
 ### A CLI tool written in Rust to provide quick access to global football scores and schedules.
 
 ### Usage
-You need to install the tool and add it to your path using the following commands:
-```
-placeholder
-```
+You need to install the app by cloning the repository and executing a few commands:
+`git clone https://github.com/jopieji/footy`
+
+Add the executable (in {install_folder/footy/target/release}) to your PATH
+
+Then, the command `footy schedule` will be available via your terminal.
+
+### Notes
+Currently, the app only supports the schedule functionality. Scores and teams support will be added soon!
+
+Also, it is hard coded to my favorite leagues, and only displays today's fixtures. This will be updated to be more customizable in the coming weeks.
 
 ### Commands
 `footy scores` will return scores of your favorite teams, which can be configured via the CLI
