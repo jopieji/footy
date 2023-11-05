@@ -5,6 +5,8 @@ use log::Level;
 
 use footy::Command;
 
+
+
 fn main() {
     println!("\nGlobal Football CLI\n============================");
 
