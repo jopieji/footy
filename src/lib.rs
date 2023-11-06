@@ -167,9 +167,6 @@ pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
 
-    // add specific print calls based on command
-    // current logic is for CommandType::Schedule
-    // need to add scores output for CommandType::Scores, and also display minutes
     match result {
         Ok(response_body) => {
             match parse_fixtures(response_body).await {
@@ -196,22 +193,53 @@ pub async fn run(cmd: Command) {
 
 }
 
-fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
+// Top-level command matching
+async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
     match cmd.command_type {
-        CommandType::Live => {
-            let output = format!("{} @ {}: {} - {} in {}'", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.status.elapsed.unwrap().to_string().bold());
-            println!("{}", output);
-        },
-        CommandType::Schedule => {
-            let output = format!("{} @ {} at {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold());
-            println!("{}", output);
-        },
-        _ => {
-            println!("Not yet implemented");
-        }
+        CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
+        CommandType::Scores => Err("Scores not implemented yet".to_string()),
+        CommandType::Teams => Err("Teams not implemented yet".to_string()),
+        CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
     }
 }
 
+// Football-API calling methods
+async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
+
+    let mut res: Vec<String> = Vec::new();
+
+    let key = env::var("FOOTY_API_KEY").unwrap();
+    let client = Client::new();
+    let settings = load_settings();
+
+    // TODO: toggle for preferred vs full leagues Vectors
+
+    for league_id in settings.preferred_leagues {
+        let url = get_fixtures_url_by_league(league_id).await;
+        let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
+        let body = response.text().await?;
+        res.push(body)
+    }
+    
+    Ok(res)
+}
+
+async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
+    let mut res: Vec<String> = Vec::new();
+
+    let key = env::var("FOOTY_API_KEY").unwrap();
+    let client = Client::new();
+    let settings = load_settings();
+
+    let url = get_live_fixtures_url(settings).await;
+    let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
+    let body = response.text().await?;
+    res.push(body);
+    
+    Ok(res)
+}
+
+// Serde parsing
 async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box<dyn std::error::Error>> {
 
     let mut res: Vec<Vec<Fixture>> = Vec::new();
@@ -231,65 +259,14 @@ async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box
     Ok(res)
 }
 
-async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
-    match cmd.command_type {
-        CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
-        CommandType::Scores => Err("Scores not implemented yet".to_string()),
-        CommandType::Teams => Err("Teams not implemented yet".to_string()),
-        CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
-    }
-}
-
-// will pull params from environment using Settings struct
-
-// TODO: function for calling scores endpoint
-//async fn get_scores() {}
-
-async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
-
-    let mut res: Vec<String> = Vec::new();
-
-    // TODO: abstract into method
-    let key = env::var("FOOTY_API_KEY").unwrap();
-    let client = Client::new();
-    let settings = load_settings();
-
-    // TODO: add logic to get preferred or full leagues schedule
-
-    for league_id in settings.preferred_leagues {
-        let url = get_fixtures_url_by_league(league_id).await;
-        let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
-        let body = response.text().await?;
-        res.push(body)
-    }
-    
-    Ok(res)
-}
-
-async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
-    let mut res: Vec<String> = Vec::new();
-
-    // TODO: abstract into method
-    let key = env::var("FOOTY_API_KEY").unwrap();
-    let client = Client::new();
-    let settings = load_settings();
-
-    let url = get_live_fixtures_url(settings).await;
-    let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
-    let body = response.text().await?;
-    res.push(body);
-    
-    Ok(res)
-}
-
-// TODO: put in utils package
+// Utils Functions
 async fn get_today_date() -> String {
     let now: DateTime<Utc> = Utc::now();
     let formatted_date = now.format("%Y-%m-%d").to_string();
     formatted_date
 }
 
-// TODO: put in utils package
+
 fn unix_to_cst (unix_timestamp: i64) -> String {
     // Create a DateTime object from the Unix timestamp (assuming it's in UTC)
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
@@ -297,12 +274,12 @@ fn unix_to_cst (unix_timestamp: i64) -> String {
     format_date(&local_time.to_string())
 }
 
-// put in utils
 fn format_date(date: &String) -> String {
     let parts: Vec<&str> = date.split_whitespace().collect(); 
     parts[1].to_string()
 }
 
+// URL Configuration Functions
 async fn get_fixtures_url_by_league(league_id: u64) -> String {
     let date = get_today_date().await;
     let season = &date[0..4];
@@ -321,8 +298,7 @@ async fn get_live_fixtures_url(settings: Settings) -> String{
     url
 }
 
-// sets user settings
-// TODO: set_settings function 
+// Settings functions
 fn load_settings() -> Settings {
     let leagues_vec: Vec<u64> = vec!(39, 135, 78);
     let full_leagues_vec: Vec<u64> = vec!(39, 45, 48, 140, 143, 78, 88, 135);
@@ -336,4 +312,21 @@ fn load_settings() -> Settings {
     };
 
     settings
+}
+
+// Output formatting
+fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
+    match cmd.command_type {
+        CommandType::Live => {
+            let output = format!("{} @ {}: {} - {} in {}'", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.status.elapsed.unwrap().to_string().bold());
+            println!("{}", output);
+        },
+        CommandType::Schedule => {
+            let output = format!("{} @ {} at {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold());
+            println!("{}", output);
+        },
+        _ => {
+            println!("Formatting not yet implemented");
+        }
+    }
 }
