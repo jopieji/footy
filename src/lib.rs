@@ -1,4 +1,6 @@
-use std::env;
+use std::{env, collections::HashMap};
+
+use csv::{ReaderBuilder, StringRecord};
 
 use chrono::{DateTime, Utc, Local, TimeZone};
 
@@ -22,7 +24,6 @@ pub enum CommandType {
 #[derive(Debug)]
 pub struct Command {
     pub command_type: CommandType
-    // TODO: pub opts: Vec<char>
 }
 
 impl Command {
@@ -43,8 +44,6 @@ impl Command {
             None => return Err("Didn't enter any command"),
         };
 
-        // TODO: opts logic
-
         Ok(Command {
             command_type,
         })
@@ -52,7 +51,7 @@ impl Command {
 }
 
 pub struct Settings {
-    pub teams: Vec<String>,
+    pub teams: HashMap<String, u64>,
     pub preferred_leagues: Vec<u64>,
     pub full_leagues: Vec<u64>,
     pub default: CommandType,
@@ -163,6 +162,12 @@ struct PenaltyScore {
     away: Option<u64>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct TeamCSVRecord {
+    name: String,
+    id: u64,
+}
+
 pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
@@ -172,7 +177,7 @@ pub async fn run(cmd: Command) {
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
-                        if fixture_list.len() == 0 { continue; }
+                        if fixture_list.is_empty() { continue; }
                         println!("\n{} fixtures", &fixture_list[0].league.name);
                         for fixture in fixture_list.iter() {
                             print_based_on_command(fixture, &cmd);
@@ -188,8 +193,6 @@ pub async fn run(cmd: Command) {
             eprintln!("Error from the API: {}", err);
         }
     }
-    
-    // could filter by teams in settings: iterator from vector, check home/away fields
 
 }
 
@@ -266,17 +269,28 @@ async fn get_today_date() -> String {
     formatted_date
 }
 
-
 fn unix_to_cst (unix_timestamp: i64) -> String {
     // Create a DateTime object from the Unix timestamp (assuming it's in UTC)
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
 
-    format_date(&local_time.to_string())
+    format_date(local_time.to_string())
 }
 
-fn format_date(date: &String) -> String {
+fn format_date(date: String) -> String {
     let parts: Vec<&str> = date.split_whitespace().collect(); 
     parts[1].to_string()
+}
+
+fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Error>> {
+    let mut teams_with_ids: HashMap<String, u64> = HashMap::new();
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv")?;
+
+    for res in csv.records() {
+        let row: StringRecord = res?;
+        let team_record: TeamCSVRecord = row.deserialize(None)?;
+        teams_with_ids.insert(team_record.name, team_record.id);
+    }
+    Ok(teams_with_ids)
 }
 
 // URL Configuration Functions
@@ -290,7 +304,7 @@ async fn get_fixtures_url_by_league(league_id: u64) -> String {
 async fn get_live_fixtures_url(settings: Settings) -> String{
     let mut leagues_live_field: String = String::from("");
     for league_id in settings.full_leagues {
-        let append_item = format!("{}{}", league_id.to_string(), "-");
+        let append_item = format!("{}{}", league_id, "-");
         leagues_live_field = leagues_live_field + &append_item;
     }
     leagues_live_field.pop();
@@ -302,16 +316,14 @@ async fn get_live_fixtures_url(settings: Settings) -> String{
 fn load_settings() -> Settings {
     let leagues_vec: Vec<u64> = vec!(39, 135, 78);
     let full_leagues_vec: Vec<u64> = vec!(39, 45, 48, 140, 143, 78, 88, 135);
-    let teams_vec: Vec<String> = vec!("Liverpool".to_string(), "AC Milan".to_string());
+    let teams_vec: HashMap<String, u64> = HashMap::new();
 
-    let settings = Settings {
+    Settings {
         teams: teams_vec,
         preferred_leagues: leagues_vec,
         full_leagues: full_leagues_vec,
         default: CommandType::Schedule,
-    };
-
-    settings
+    }
 }
 
 // Output formatting
@@ -333,11 +345,35 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use crate::read_from_teams_csv;
+
     #[test]
     fn it_works() {
         let result = 2 + 2;
         assert_eq!(result, 4);
     }
 
-    
+    #[test]
+    fn csv_read() {
+        let mut tester: HashMap<String, u64>  = HashMap::new();
+        tester.insert(String::from("Liverpool"), 40);
+        tester.insert(String::from("AC Milan"), 907);
+
+        let res = read_from_teams_csv();
+
+        match &res {
+            Ok(res) => {
+                dbg!(&res);
+            },
+            Err(error) => {
+                dbg!("Error reading csv into HashMap: {}", error);
+            }
+        }
+
+        assert_eq!(res.unwrap(), tester);
+    }
+
+
 }
