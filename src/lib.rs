@@ -19,7 +19,6 @@ pub enum CommandType {
     Schedule,
     Teams,
     Live,
-    Add,
 }
 
 #[derive(Debug)]
@@ -40,7 +39,6 @@ impl Command {
                 "schedule" => CommandType::Schedule,
                 "teams" => CommandType::Teams,
                 "live" => CommandType::Live,
-                "add" => CommandType::Add,
                 _ => return Err("Invalid command type")
             },
             None => return Err("Didn't enter any command"),
@@ -240,16 +238,15 @@ pub async fn run(cmd: Command) {
 async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
     match cmd.command_type {
         CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
-        CommandType::Scores => Err("Scores not implemented yet".to_string()),
-        CommandType::Teams => {
+        CommandType::Scores => {
             print!("My Teams Fixtures\n");
             get_teams_fixtures().await.map_err(|err| err.to_string())
-        },
-        CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
-        CommandType::Add => {
+        }
+        CommandType::Teams => {
             prompt_add().await;
             Ok(vec![])
-        }
+        },
+        CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
     }
 }
 
@@ -500,7 +497,7 @@ async fn get_team_url(team_id: u64) -> String {
 // Settings functions
 fn load_settings() -> Settings {
     let leagues_vec: Vec<u64> = vec!(39, 135, 78);
-    let full_leagues_vec: Vec<u64> = vec!(39, 45, 48, 140, 143, 78, 88, 135);
+    let full_leagues_vec: Vec<u64> = vec!(2, 39, 45, 48, 140, 143, 78, 88, 135);
     let teams_vec: HashMap<String, u64> = HashMap::new();
 
     Settings {
