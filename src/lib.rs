@@ -1,4 +1,4 @@
-use std::{env, collections::HashMap, io, error::Error};
+use std::{env, collections::HashMap, io, error::Error, fs::OpenOptions};
 
 use csv::{ReaderBuilder, StringRecord, Writer};
 
@@ -326,7 +326,7 @@ async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
 
     match team_response.response.get(0).cloned() {
         Some(data) => Ok(data),
-        None => Err("Parsing failed".to_string().into()),
+        None => Err("Not a valid team. Try again!".to_string().into()),
     }
 }
 
@@ -393,7 +393,7 @@ async fn add_team(team: String) -> Result<(), reqwest::Error> {
 
     match try_get_team_id(team).await  {
         Ok(team_struct) => {
-            add_team_to_csv(team_struct.team).unwrap_or(println!("Error adding to CSV"));
+            add_team_to_csv(team_struct.team).unwrap();
             println!("Added {}", t);
         },
         Err(error) => {
@@ -405,8 +405,17 @@ async fn add_team(team: String) -> Result<(), reqwest::Error> {
 }
 
 fn add_team_to_csv(team: TeamCSVRecord) -> Result<(), Box<dyn std::error::Error>> {
-    let mut csv_writer = Writer::from_path("./teams.csv").unwrap();
 
+    let file = OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open("./teams.csv")?;
+
+    let mut csv_writer = csv::WriterBuilder::new()
+        .has_headers(false)
+        .delimiter(b',')
+        .from_writer(file);
+    
     csv_writer.serialize(team)?;
 
     csv_writer.flush()?;
