@@ -450,7 +450,7 @@ async fn prompt_add()  {
     match char_input.trim() {
         "t" => {
             let team = get_team_input();
-            add_team(team).await;
+            let _ = add_team(team).await;
         }
         "l" => {
             println!("Not yet configured. Check again soon!");
@@ -523,9 +523,10 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             let output = format!("{} @ {}: {} - {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red());
             println!("{}", output);
         },
-        _ => {
-            println!("Formatting not yet implemented");
-        }
+        CommandType::Scores => {
+            let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
+            println!("{}", output);
+        },
     }
 }
 
