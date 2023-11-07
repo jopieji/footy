@@ -520,8 +520,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Teams => {
-            let output = format!("{} @ {}: {} - {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red());
-            println!("{}", output);
+            
         },
         CommandType::Scores => {
             let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
