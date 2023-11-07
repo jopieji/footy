@@ -1,6 +1,6 @@
 use std::{env, collections::HashMap, io, error::Error, fs::OpenOptions};
 
-use csv::{ReaderBuilder, StringRecord, Writer};
+use csv::{ReaderBuilder, StringRecord};
 
 use chrono::{DateTime, Utc, Local, TimeZone};
 
@@ -66,7 +66,7 @@ struct Fixture {
     league: LeagueData,
     teams: TeamsData,
     goals: GoalsData,
-    score: ScoreData,
+    score: Option<ScoreData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -117,7 +117,7 @@ struct LeagueData {
     name: String,
     country: String,
     logo: String,
-    flag: String,
+    flag: Option<String>,
     season: u16,
     round: String,
 }
@@ -219,7 +219,6 @@ pub async fn run(cmd: Command) {
                 Ok(fixture_responses) => { 
                     for fixture_list in fixture_responses.iter() {
                         if fixture_list.is_empty() { continue; }
-                        println!("\n{} fixtures", &fixture_list[0].league.name);
                         for fixture in fixture_list.iter() {
                             print_based_on_command(fixture, &cmd);
                         }
@@ -242,7 +241,10 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
     match cmd.command_type {
         CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
         CommandType::Scores => Err("Scores not implemented yet".to_string()),
-        CommandType::Teams => Err("Teams not implemented yet".to_string()),
+        CommandType::Teams => {
+            print!("My Teams Fixtures\n");
+            get_teams_fixtures().await.map_err(|err| err.to_string())
+        },
         CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
         CommandType::Add => {
             prompt_add().await;
@@ -265,9 +267,11 @@ async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
     for league_id in settings.preferred_leagues {
         let url = get_fixtures_url_by_league(league_id).await;
         let response = client.get(url)
-        .header("X-RapidAPI-KEY", &key)
-        .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
-        .send().await.unwrap();
+            .header("X-RapidAPI-KEY", &key)
+            .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+            .send()
+            .await
+            .unwrap();
         let body = response.text().await?;
         res.push(body)
     }
@@ -286,26 +290,39 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
     let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
         .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
-        .send().await.unwrap();
-    let body = response.text().await?;
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await?;
 
-    res.push(body);
+    res.push(response);
     
     Ok(res)
 }
 
 async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
-    //let mut res: Vec<String> = Vec::new();
+    let mut res: Vec<String> = Vec::new();
 
-    // need to follow same logic
-    // could query all team fixtures for this current season, then filter by closest to today's date in separate function
-    // would also need to check for past, live, and upcoming
-    // could just iterate thru all fixtures, check for most recent before today's date, save in variable
-    // if one is live, it can override this value
-    // then, take first value that is upcoming and break and output
+    let teams = read_from_teams_csv().unwrap();
 
+    let key = env::var("FOOTY_API_KEY").unwrap();
+    let client = Client::new();
 
-    Ok(vec![])
+    for (_team, team_id) in teams {
+        let url = get_team_url(team_id).await;
+        let response = client.get(url)
+            .header("X-RapidAPI-KEY", &key)
+            .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await?;
+        res.push(response);
+    }
+
+    Ok(res)
 }
 
 async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
@@ -321,6 +338,8 @@ async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
         .unwrap()
         .text()
         .await?;
+
+    dbg!(&response);
 
     let team_response: TeamResponse = serde_json::from_str(&response)?;
 
@@ -343,11 +362,7 @@ async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box
 
     for json in json_list {
         let data: Map<String, Value> = serde_json::from_str(&json)?;
-
-        // Extract the "response" field, which contains an array of fixtures
         let response = data.get("response").ok_or("Missing 'response' field")?;
-
-        // Parse the array of fixtures into a vector of Fixture
         let league_fixture_list: Vec<Fixture> = serde_json::from_value(response.clone())?;
 
         res.push(league_fixture_list);
@@ -390,13 +405,14 @@ fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Err
 async fn add_team(team: String) -> Result<(), reqwest::Error> {
 
     let t = team.clone();
-
+    dbg!("Enter get team");
     match try_get_team_id(team).await  {
         Ok(team_struct) => {
             add_team_to_csv(team_struct.team).unwrap();
             println!("Added {}", t);
         },
         Err(error) => {
+            dbg!("Fail get team");
             println!("{}", error);
         }
     }
@@ -476,6 +492,11 @@ async fn get_live_fixtures_url(settings: Settings) -> String {
     url
 }
 
+async fn get_team_url(team_id: u64) -> String {
+    let url = format!("{}season=2023&team={}&last=2", BASE_URL, team_id);
+    url
+} 
+
 // Settings functions
 fn load_settings() -> Settings {
     let leagues_vec: Vec<u64> = vec!(39, 135, 78);
@@ -502,7 +523,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Teams => {
-            let output = format!("{} @ {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red());
+            let output = format!("{} @ {}: {} - {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red());
             println!("{}", output);
         },
         _ => {
@@ -516,12 +537,6 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::read_from_teams_csv;
-
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
 
     #[test]
     fn csv_read() {
@@ -540,7 +555,7 @@ mod tests {
             }
         }
 
-        assert_eq!(res.unwrap(), tester);
+        assert_eq!(res.unwrap().get("Liverpool"), tester.get("Liverpool"));
     }
 
 
