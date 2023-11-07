@@ -1,6 +1,6 @@
-use std::{env, collections::HashMap};
+use std::{env, collections::HashMap, io, error::Error};
 
-use csv::{ReaderBuilder, StringRecord};
+use csv::{ReaderBuilder, StringRecord, Writer};
 
 use chrono::{DateTime, Utc, Local, TimeZone};
 
@@ -19,6 +19,7 @@ pub enum CommandType {
     Schedule,
     Teams,
     Live,
+    Add,
 }
 
 #[derive(Debug)]
@@ -39,6 +40,7 @@ impl Command {
                 "schedule" => CommandType::Schedule,
                 "teams" => CommandType::Teams,
                 "live" => CommandType::Live,
+                "add" => CommandType::Add,
                 _ => return Err("Invalid command type")
             },
             None => return Err("Didn't enter any command"),
@@ -92,6 +94,16 @@ struct Venue {
     city: String,
 }
 
+impl Clone for Venue {
+    fn clone(&self) -> Self {
+        Venue {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            city: self.city.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Status {
     long: String,
@@ -122,6 +134,26 @@ struct Team {
     name: String,
     logo: String,
     winner: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TeamResponse {
+    response: Vec<TeamInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TeamInfo {
+    team: TeamCSVRecord,
+    venue: Venue,
+}
+
+impl Clone for TeamInfo {
+    fn clone(&self) -> Self {
+        TeamInfo {
+            team: self.team.clone(),
+            venue: self.venue.clone(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -168,6 +200,15 @@ struct TeamCSVRecord {
     id: u64,
 }
 
+impl Clone for TeamCSVRecord {
+    fn clone(&self) -> Self {
+        TeamCSVRecord {
+            name: self.name.clone(),
+            id: self.id.clone(),
+        }
+    }
+}
+
 pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
@@ -175,7 +216,7 @@ pub async fn run(cmd: Command) {
     match result {
         Ok(response_body) => {
             match parse_fixtures(response_body).await {
-                Ok(fixture_responses) => {
+                Ok(fixture_responses) => { 
                     for fixture_list in fixture_responses.iter() {
                         if fixture_list.is_empty() { continue; }
                         println!("\n{} fixtures", &fixture_list[0].league.name);
@@ -203,6 +244,10 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
         CommandType::Scores => Err("Scores not implemented yet".to_string()),
         CommandType::Teams => Err("Teams not implemented yet".to_string()),
         CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
+        CommandType::Add => {
+            prompt_add().await;
+            Ok(vec![])
+        }
     }
 }
 
@@ -219,7 +264,10 @@ async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
 
     for league_id in settings.preferred_leagues {
         let url = get_fixtures_url_by_league(league_id).await;
-        let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
+        let response = client.get(url)
+        .header("X-RapidAPI-KEY", &key)
+        .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+        .send().await.unwrap();
         let body = response.text().await?;
         res.push(body)
     }
@@ -235,15 +283,61 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
     let settings = load_settings();
 
     let url = get_live_fixtures_url(settings).await;
-    let response = client.get(url).header("X-RapidAPI-KEY", &key).header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com").send().await.unwrap();
+    let response = client.get(url)
+        .header("X-RapidAPI-KEY", &key)
+        .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+        .send().await.unwrap();
     let body = response.text().await?;
+
     res.push(body);
     
     Ok(res)
 }
 
+async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
+    //let mut res: Vec<String> = Vec::new();
+
+    // need to follow same logic
+    // could query all team fixtures for this current season, then filter by closest to today's date in separate function
+    // would also need to check for past, live, and upcoming
+    // could just iterate thru all fixtures, check for most recent before today's date, save in variable
+    // if one is live, it can override this value
+    // then, take first value that is upcoming and break and output
+
+
+    Ok(vec![])
+}
+
+async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
+    let key = env::var("FOOTY_API_KEY").unwrap();
+    let url = format!("{}?name={}", "https://api-football-v1.p.rapidapi.com/v3/teams", team);
+    let client = Client::new();
+
+    let response = client.get(url)
+        .header("X-RapidAPI-KEY", &key)
+        .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await?;
+
+    let team_response: TeamResponse = serde_json::from_str(&response)?;
+
+    match team_response.response.get(0).cloned() {
+        Some(data) => Ok(data),
+        None => Err("Parsing failed".to_string().into()),
+    }
+}
+
+
 // Serde parsing
 async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box<dyn std::error::Error>> {
+
+    // logic to step out on add: no fixtures to parse
+    if json_list.len() == 0 {
+        return Ok(vec![vec![]])
+    }
 
     let mut res: Vec<Vec<Fixture>> = Vec::new();
 
@@ -293,6 +387,67 @@ fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Err
     Ok(teams_with_ids)
 }
 
+async fn add_team(team: String) -> Result<(), reqwest::Error> {
+
+    let t = team.clone();
+
+    match try_get_team_id(team).await  {
+        Ok(team_struct) => {
+            add_team_to_csv(team_struct.team).unwrap_or(println!("Error adding to CSV"));
+            println!("Added {}", t);
+        },
+        Err(error) => {
+            println!("{}", error);
+        }
+    }
+
+    Ok(())
+}
+
+fn add_team_to_csv(team: TeamCSVRecord) -> Result<(), Box<dyn std::error::Error>> {
+    let mut csv_writer = Writer::from_path("./teams.csv").unwrap();
+
+    csv_writer.serialize(team)?;
+
+    csv_writer.flush()?;
+
+    Ok(())
+}
+
+async fn prompt_add()  {
+    println!("Type 'l' to add a league or 't' to add a team");
+
+    let mut char_input = String::new();
+
+    let stdin = io::stdin();
+
+    // Read user input into the `user_input` string
+    stdin.read_line(&mut char_input)
+        .expect("Failed to read input");
+
+    match char_input.trim() {
+        "t" => {
+            let team = get_team_input();
+            add_team(team).await;
+        }
+        "l" => {
+            println!("Not yet configured. Check again soon!");
+        },
+        &_ => todo!()
+    }
+}
+
+fn get_team_input() -> String {
+    println!("Enter a team to add to your list of teams: ");
+    let mut team_input = String::new();
+
+    let stdin = io::stdin();
+    stdin.read_line(&mut team_input)
+        .expect("Failed to read input");
+    
+    team_input.trim().to_string()
+}
+
 // URL Configuration Functions
 async fn get_fixtures_url_by_league(league_id: u64) -> String {
     let date = get_today_date().await;
@@ -301,7 +456,7 @@ async fn get_fixtures_url_by_league(league_id: u64) -> String {
     format!("{}league={}&season={}&date={}", BASE_URL, league_id, season, date)
 }
 
-async fn get_live_fixtures_url(settings: Settings) -> String{
+async fn get_live_fixtures_url(settings: Settings) -> String {
     let mut leagues_live_field: String = String::from("");
     for league_id in settings.full_leagues {
         let append_item = format!("{}{}", league_id, "-");
@@ -335,6 +490,10 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
         },
         CommandType::Schedule => {
             let output = format!("{} @ {} at {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold());
+            println!("{}", output);
+        },
+        CommandType::Teams => {
+            let output = format!("{} @ {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red());
             println!("{}", output);
         },
         _ => {
