@@ -214,9 +214,9 @@ pub async fn run(cmd: Command) {
     match result {
         Ok(response_body) => {
             match parse_fixtures(response_body).await {
-                Ok(fixture_responses) => { 
+                Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
-                        if fixture_list.is_empty() { continue; }
+                        if fixture_list.is_empty() { println!("No fixtures :("); break;}
                         for fixture in fixture_list.iter() {
                             print_based_on_command(fixture, &cmd);
                         }
