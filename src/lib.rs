@@ -404,7 +404,7 @@ fn unix_to_date (unix_timestamp: i64) -> String {
 
 fn format_time(date: String) -> String {
     let parts: Vec<&str> = date.split_whitespace().collect(); 
-    parts[1].to_string()
+    parts[1][0..5].to_string()
 }
 
 fn format_date(date: String) -> String {
