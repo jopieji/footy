@@ -239,7 +239,6 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
     match cmd.command_type {
         CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
         CommandType::Scores => {
-            print!("My Teams Fixtures\n");
             get_teams_fixtures().await.map_err(|err| err.to_string())
         }
         CommandType::Teams => {
@@ -253,14 +252,17 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
 // Football-API calling methods
 async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
 
+    // todo: date print
+    smart_print_date();
+
     let mut res: Vec<String> = Vec::new();
 
     let key = env::var("FOOTY_API_KEY").unwrap();
     let client = Client::new();
     let settings = load_settings();
 
-    // TODO: toggle for preferred vs full leagues Vectors
-
+    // could add a new item at end of each league query to print whitespace between leagues 
+    // or print by
     for league_id in settings.preferred_leagues {
         let url = get_fixtures_url_by_league(league_id).await;
         let response = client.get(url)
@@ -299,6 +301,7 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
 }
 
 async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
+    println!("My Teams Fixtures\n");
     let mut res: Vec<String> = Vec::new();
 
     let teams_file = read_from_teams_csv();
@@ -389,15 +392,36 @@ async fn get_today_date() -> String {
 }
 
 fn unix_to_cst (unix_timestamp: i64) -> String {
-    // Create a DateTime object from the Unix timestamp (assuming it's in UTC)
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
 
+    format_time(local_time.to_string())
+}
+
+fn unix_to_date (unix_timestamp: i64) -> String {
+    let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
     format_date(local_time.to_string())
 }
 
-fn format_date(date: String) -> String {
+fn format_time(date: String) -> String {
     let parts: Vec<&str> = date.split_whitespace().collect(); 
     parts[1].to_string()
+}
+
+fn format_date(date: String) -> String {
+    let parts: Vec<&str> = date.split_whitespace().collect();
+    parts[0][5..].to_string()
+}
+
+fn smart_print_date() {
+    let date = unix_to_date(Utc::now().timestamp());
+
+    let hour = unix_to_cst(Utc::now().timestamp());
+    let hr_int = hour[0..2].parse::<i64>().unwrap();
+    if hr_int > 18 {
+        println!("{} Fixtures", unix_to_date(Utc::now().timestamp()+40000));
+    } else {
+        println!("{} Fixtures", date);
+    }
 }
 
 fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Error>> {

@@ -43,3 +43,5 @@ I'm looking into adding:
 ### Known Bugs
 Teams that share names with other teams have trouble being added. For example, there are two teams that come up for "Arsenal", so Arsenal
 won't properly be added to your list of teams. I am looking into this, and will find a resolution as soon as possible.
+
+If you manually edit the teams.csv file, you need to ensure there's a newline at the end. 
