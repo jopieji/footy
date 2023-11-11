@@ -14,6 +14,8 @@ Still, you need to add an API key to your environment. To obtain an API key, vis
 Open a `.zshrc` or `.bashrc` file and add\n
 `EXPORT FOOTY_API_KEY={your_key_here}`
 
+Set `CONFIG_PATH` to the absolute path of your teams.csv files, and add it to your `.zshrc` or `.bashrc` file with the syntax `EXPORT CONFIG_PATH={abs_path_to_your_teams.csv}`
+
 Finally, the command `footy schedule` will be available via your terminal.
 
 
@@ -21,6 +23,7 @@ Finally, the command `footy schedule` will be available via your terminal.
 Currently, the app only supports the schedule functionality. Scores and teams support will be added soon!
 
 Also, it is hard coded to my favorite leagues, and only displays today's fixtures. This will be updated to be more customizable in the coming weeks.
+
 
 ### Commands
 `footy scores` will display scores of your favorite teams, which can be configured via the CLI (right now, it shows the last two fixtures)

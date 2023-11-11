@@ -1,4 +1,4 @@
-use std::{env, collections::HashMap, io, error::Error, fs::OpenOptions};
+use std::{env, collections::HashMap, io, error::Error, fs::OpenOptions, process};
 
 use csv::{ReaderBuilder, StringRecord};
 
@@ -301,7 +301,20 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
 async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
     let mut res: Vec<String> = Vec::new();
 
-    let teams = read_from_teams_csv().unwrap();
+    let teams_file = read_from_teams_csv();
+
+    let teams = match teams_file {
+        Ok(teams_file) => teams_file,
+        Err(_) => {
+            println!("File not found. Exiting");
+            let mut hm = HashMap::new();
+            hm.insert(String::from("Err"), 10);
+            hm
+        }
+    };
+    if teams.contains_key("Err") {
+        process::exit(1);
+    }
 
     let key = env::var("FOOTY_API_KEY").unwrap();
     let client = Client::new();
@@ -389,7 +402,9 @@ fn format_date(date: String) -> String {
 
 fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Error>> {
     let mut teams_with_ids: HashMap<String, u64> = HashMap::new();
-    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv")?;
+    let path = env::var("CONFIG_PATH");
+    let path_string = path.unwrap_or("./teams.csv".to_string());
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string)?;
 
     for res in csv.records() {
         let row: StringRecord = res?;
