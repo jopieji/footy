@@ -483,7 +483,7 @@ fn remove_team_from_csv(team: String) -> Result<(), Box<dyn Error>> {
 
     let mut records: Vec<TeamCSVRecord> = csv_reader.deserialize().collect::<Result<Vec<_>, _>>()?;
 
-    records.retain(|record| record.name.to_lowercase() != team);
+    records.retain(|record| record.name.to_lowercase() != team.to_lowercase());
 
     let file = OpenOptions::new().write(true).truncate(true).open("./teams.csv")?;
     let mut csv_writer = csv::WriterBuilder::new().has_headers(false).delimiter(b',').from_writer(file);
@@ -528,7 +528,7 @@ async fn prompt_teams_edit()  {
         }
         "r" => {
             let team = get_team_input('r');
-            let _ = remove_team_from_csv(team.to_lowercase());
+            let _ = remove_team_from_csv(team);
         },
         &_ => {
             println!("Invalid input");
@@ -645,19 +645,39 @@ mod tests {
 
         let path_string = "./teams.csv";
         
-        // add team, check length after collecting records into vec
+        // add team (to ensure in Vec), check length after collecting records into vec
+        let team_to_add = TeamCSVRecord {
+            name: String::from("Team"),
+            id: 1,
+        };
+
+        let _ = add_team_to_csv(team_to_add);
 
         let mut csv1 = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+        let records1: Vec<TeamCSVRecord> = csv1.deserialize().collect::<Result<Vec<_>, _>>().unwrap();
+        let original_length = records1.len();
 
-        //remove_team_from_csv();
+        let _ = remove_team_from_csv(String::from("Team"));
 
-        let mut csv2 =  ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
 
         // collect again, compare lengths
         // assert they are different by one
+        let mut csv2 =  ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+        let records2: Vec<TeamCSVRecord> = csv2.deserialize().collect::<Result<Vec<_>, _>>().unwrap();
+        let new_length = records2.len();
 
-        // maybe create test teams.csv file?
+        assert_eq!(original_length-1, new_length);
 
+    }
+
+    #[test]
+    fn test_check_if_teams_command() {
+        let cmd: Command = Command {
+            command_type: CommandType::Teams,
+        };
+        let check = check_if_teams_command(&cmd);
+
+        assert_eq!(true, check);
     }
 
 
