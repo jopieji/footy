@@ -252,7 +252,6 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
 // Football-API calling methods
 async fn get_schedule() -> Result<Vec<String>, reqwest::Error> {
 
-    // todo: date print
     smart_print_date();
 
     let mut res: Vec<String> = Vec::new();
