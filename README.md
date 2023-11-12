@@ -32,7 +32,7 @@ Also, it is hard coded to my favorite leagues, and only displays today's fixture
 
 `footy live` will display live scores of matches for you full list of leagues
 
-`footy teams` will return the last 2 fixtures (with scores) of your configured favorite teams
+`footy teams` will allow you to edit your favorited teams
 
 
 ### Future

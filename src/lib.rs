@@ -211,6 +211,9 @@ pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
 
+    // todo: implement partialeq 
+    // if cmd.command_type == CommandType::Teams { break; }
+
     match result {
         Ok(response_body) => {
             match parse_fixtures(response_body).await {
@@ -474,8 +477,24 @@ fn add_team_to_csv(team: TeamCSVRecord) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+fn remove_team_from_csv(team: TeamCSVRecord) -> () {
+    ()
+}
+
+fn print_all_teams() {
+
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
+
+    for res in csv.records() {
+        let row = res.unwrap();
+        let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
+
+        println!("{}", csv_row.name);
+    }
+}
+
 async fn prompt_add()  {
-    println!("Type 'l' to add a league or 't' to add a team");
+    println!("Type 't' to add a team or 'r' to remove a team");
 
     let mut char_input = String::new();
 
@@ -487,18 +506,30 @@ async fn prompt_add()  {
 
     match char_input.trim() {
         "t" => {
-            let team = get_team_input();
+            let team = get_team_input('t');
             let _ = add_team(team).await;
         }
-        "l" => {
-            println!("Not yet configured. Check again soon!");
+        "r" => {
+            let team = get_team_input('r');
+            println!("{}", team.to_lowercase());
+            // todo: removal logic
         },
-        &_ => todo!()
+        &_ => {
+            println!("Invalid input");
+            // todo: prompt_add().await;
+        }
     }
 }
 
-fn get_team_input() -> String {
-    println!("Enter a team to add to your list of teams: ");
+fn get_team_input(opt: char) -> String {
+    if opt == 't' {
+        println!("Enter a team to add to your list of teams: ");
+    } else if opt == 'r' {
+        println!("Your current teams: ");
+        print_all_teams();
+        println!("\nEnter a team to remove from your list of teams:");
+    }
+    
     let mut team_input = String::new();
 
     let stdin = io::stdin();
@@ -571,7 +602,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::read_from_teams_csv;
+    use super::*;
 
     #[test]
     fn csv_read() {
@@ -591,6 +622,21 @@ mod tests {
         }
 
         assert_eq!(res.unwrap().get("Liverpool"), tester.get("Liverpool"));
+    }
+
+    #[test]
+    fn read_all_teams_test() {
+
+        let path_string = "./teams.csv";
+
+        let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+
+        for res in csv.records() {
+            let row = res.unwrap();
+            dbg!(&row);
+            let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
+            println!("{}", csv_row.name);
+        }
     }
 
 
