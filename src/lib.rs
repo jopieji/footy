@@ -13,7 +13,7 @@ use colored::Colorize;
 
 const BASE_URL: &str = "https://api-football-v1.p.rapidapi.com/v3/fixtures?";
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CommandType {
     Scores,
     Schedule,
@@ -211,11 +211,9 @@ pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
 
-    // todo: implement partialeq 
-    // if cmd.command_type == CommandType::Teams { break; }
-
     match result {
         Ok(response_body) => {
+            if check_if_teams_command(&cmd) { return; }
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
@@ -245,7 +243,7 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
             get_teams_fixtures().await.map_err(|err| err.to_string())
         }
         CommandType::Teams => {
-            prompt_add().await;
+            prompt_teams_edit().await;
             Ok(vec![])
         },
         CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
@@ -354,8 +352,6 @@ async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
         .text()
         .await?;
 
-    dbg!(&response);
-
     let team_response: TeamResponse = serde_json::from_str(&response)?;
 
     match team_response.response.get(0).cloned() {
@@ -387,6 +383,11 @@ async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box
 }
 
 // Utils Functions
+fn check_if_teams_command(cmd: &Command) -> bool {
+    if cmd.command_type == CommandType::Teams { return true }
+    false
+}
+
 async fn get_today_date() -> String {
     let now: DateTime<Utc> = Utc::now();
     let formatted_date = now.format("%Y-%m-%d").to_string();
@@ -443,10 +444,10 @@ fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Err
 async fn add_team(team: String) -> Result<(), reqwest::Error> {
 
     let t = team.clone();
-    dbg!("Enter get team");
+
     match try_get_team_id(team).await  {
         Ok(team_struct) => {
-            add_team_to_csv(team_struct.team).unwrap();
+            let _ = add_team_to_csv(team_struct.team).unwrap();
             println!("Added {}", t);
         },
         Err(error) => {
@@ -477,8 +478,24 @@ fn add_team_to_csv(team: TeamCSVRecord) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-fn remove_team_from_csv(team: TeamCSVRecord) -> () {
-    ()
+fn remove_team_from_csv(team: String) -> Result<(), Box<dyn Error>> {
+    let mut csv_reader = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
+
+    let mut records: Vec<TeamCSVRecord> = csv_reader.deserialize().collect::<Result<Vec<_>, _>>()?;
+
+    records.retain(|record| record.name.to_lowercase() != team);
+
+    let file = OpenOptions::new().write(true).truncate(true).open("./teams.csv")?;
+    let mut csv_writer = csv::WriterBuilder::new().has_headers(false).delimiter(b',').from_writer(file);
+
+    for record in records {
+        csv_writer.serialize(record)?;
+    }
+        
+    csv_writer.flush()?;
+
+    println!("Removed {} from your teams list", team);
+    Ok(())
 }
 
 fn print_all_teams() {
@@ -493,8 +510,8 @@ fn print_all_teams() {
     }
 }
 
-async fn prompt_add()  {
-    println!("Type 't' to add a team or 'r' to remove a team");
+async fn prompt_teams_edit()  {
+    println!("Type 'a' to add a team or 'r' to remove a team");
 
     let mut char_input = String::new();
 
@@ -505,14 +522,13 @@ async fn prompt_add()  {
         .expect("Failed to read input");
 
     match char_input.trim() {
-        "t" => {
-            let team = get_team_input('t');
+        "a" => {
+            let team = get_team_input('a');
             let _ = add_team(team).await;
         }
         "r" => {
             let team = get_team_input('r');
-            println!("{}", team.to_lowercase());
-            // todo: removal logic
+            let _ = remove_team_from_csv(team.to_lowercase());
         },
         &_ => {
             println!("Invalid input");
@@ -522,10 +538,10 @@ async fn prompt_add()  {
 }
 
 fn get_team_input(opt: char) -> String {
-    if opt == 't' {
+    if opt == 'a' {
         println!("Enter a team to add to your list of teams: ");
     } else if opt == 'r' {
-        println!("Your current teams: ");
+        println!("\nYour current teams: ");
         print_all_teams();
         println!("\nEnter a team to remove from your list of teams:");
     }
@@ -589,7 +605,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Teams => {
-            
+            // Empty: printing done in functions
         },
         CommandType::Scores => {
             let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
@@ -625,18 +641,23 @@ mod tests {
     }
 
     #[test]
-    fn read_all_teams_test() {
+    fn remove_team_test() {
 
         let path_string = "./teams.csv";
+        
+        // add team, check length after collecting records into vec
 
-        let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+        let mut csv1 = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
 
-        for res in csv.records() {
-            let row = res.unwrap();
-            dbg!(&row);
-            let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
-            println!("{}", csv_row.name);
-        }
+        //remove_team_from_csv();
+
+        let mut csv2 =  ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+
+        // collect again, compare lengths
+        // assert they are different by one
+
+        // maybe create test teams.csv file?
+
     }
 
 
