@@ -32,13 +32,14 @@ Also, it is hard coded to my favorite leagues, and only displays today's fixture
 
 `footy live` will display live scores of matches for you full list of leagues
 
-`footy teams` will return the last 2 fixtures (with scores) of your configured favorite teams
+`footy teams` will allow you to edit your favorited teams
 
 
 ### Future
 I'm looking into adding: 
 - customizable league adding/deleting for your favorites list (affects `live`, `schedule` commands)
 - schedule lookahead (show upcoming fixtures for teams)
+- removal of favorited teams
 
 ### Known Bugs
 Teams that share names with other teams have trouble being added. For example, there are two teams that come up for "Arsenal", so Arsenal
