@@ -601,7 +601,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Schedule => {
-            let output = format!("{} @ {} at {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold());
+            let output = format!("{} @ {} at {} {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_in_progress(&fixture.fixture.status.short));
             println!("{}", output);
         },
         CommandType::Teams => {
@@ -611,6 +611,14 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
             println!("{}", output);
         },
+    }
+}
+
+fn check_if_in_progress(short_status: &String) -> &str {
+    if short_status != "TBD" || short_status != "NS" {
+        "| In Progress"
+    } else {
+        ""
     }
 }
 
