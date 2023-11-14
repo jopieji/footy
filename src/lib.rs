@@ -258,8 +258,7 @@ pub async fn run(cmd: Command) {
 
     match result {
         Ok(response_body) => {
-            if check_if_teams_command(&cmd) { return; }
-            //dbg!(&response_body);
+            if check_if_not_fixtures_trait_type(&cmd) { return; }
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
@@ -484,9 +483,12 @@ fn parse_standings(raw_response: &Vec<String>) -> Result<Vec<Vec<Vec<TeamStandin
 }
 
 // Utils Functions
-fn check_if_teams_command(cmd: &Command) -> bool {
-    if cmd.command_type == CommandType::Teams { return true }
-    false
+fn check_if_not_fixtures_trait_type(cmd: &Command) -> bool {
+    match cmd.command_type {
+        CommandType::Teams => true,
+        CommandType::Standings => true,
+        _ => false,
+    }
 }
 
 async fn get_today_date() -> String {
@@ -808,7 +810,16 @@ mod tests {
         let cmd: Command = Command {
             command_type: CommandType::Teams,
         };
-        let check = check_if_teams_command(&cmd);
+        let check = check_if_not_fixtures_trait_type(&cmd);
+
+        assert_eq!(true, check);
+    }
+
+    fn test_check_if_standings_command() {
+        let cmd: Command = Command {
+            command_type: CommandType::Standings,
+        };
+        let check = check_if_not_fixtures_trait_type(&cmd);
 
         assert_eq!(true, check);
     }
