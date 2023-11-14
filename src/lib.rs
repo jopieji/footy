@@ -19,6 +19,7 @@ pub enum CommandType {
     Schedule,
     Teams,
     Live,
+    Standings
 }
 
 #[derive(Debug)]
@@ -39,6 +40,7 @@ impl Command {
                 "schedule" => CommandType::Schedule,
                 "teams" => CommandType::Teams,
                 "live" => CommandType::Live,
+                "standings" => CommandType::Standings,
                 _ => return Err("Invalid command type")
             },
             None => return Err("Didn't enter any command"),
@@ -207,6 +209,28 @@ impl Clone for TeamCSVRecord {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct Table {
+    team_standings: Vec<TeamStanding>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TeamStanding {
+    team_id: u32,
+    team_name: String,
+    rank: u32,
+    points: u32,
+    form: String,
+}
+
+#[derive (Debug, Deserialize)]
+struct TeamStandingWLDInfo {
+    played: u32,
+    win: u32,
+    draw: u32,
+    loss: u32,
+}
+
 pub async fn run(cmd: Command) {
 
     let result = match_cmd_and_call(&cmd).await;
@@ -214,6 +238,7 @@ pub async fn run(cmd: Command) {
     match result {
         Ok(response_body) => {
             if check_if_teams_command(&cmd) { return; }
+            dbg!(&response_body);
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
@@ -247,6 +272,7 @@ async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
             Ok(vec![])
         },
         CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
+        CommandType::Standings => get_standings_for_base_leagues().await.map_err( | err | err.to_string()),
     }
 }
 
@@ -315,6 +341,7 @@ async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
             hm
         }
     };
+
     if teams.contains_key("Err") {
         process::exit(1);
     }
@@ -360,6 +387,32 @@ async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
     }
 }
 
+async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>> {
+    // can either get leauge id from config list, static list, or from teams favorited
+    let key = env::var("FOOTY_API_KEY").unwrap();
+    let client = Client::new();
+
+    let static_temp_list = vec![39, 140, 78, 135];
+
+    let mut res: Vec<String> = Vec::new();
+
+    for league_id in static_temp_list {
+        let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
+
+        let response = client.get(url)
+        .header("X-RapidAPI-KEY", &key)
+        .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await?;
+
+        res.push(response);
+    }
+
+    Ok(res)
+}
 
 // Serde parsing
 async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box<dyn std::error::Error>> {
@@ -611,6 +664,10 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
             println!("{}", output);
         },
+        CommandType::Standings => {
+            println!("{}", "Implement output for standings");
+            todo!();
+        }
     }
 }
 
