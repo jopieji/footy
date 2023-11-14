@@ -718,14 +718,25 @@ fn print_all_teams() {
 }
 
 fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
-    for team_standing_info in league_standings {
-        for ts in team_standing_info {
-            for x in ts {
-                println!("{}. {} | Points: {} | Form: {}", x.rank, x.team.name, x.points, x.form.unwrap_or(String::from("na")));
+    for vec in league_standings {
+        for league_standing in vec {
+            for team in league_standing {
+                format_team_row(team);
             }
         }
-        println!("======================================\\n")
+        println!("=================================================\n")
     }
+}
+
+fn format_team_row(team: TeamStanding) {
+    let formatted_team_row = format!(
+        "{:<5} {:<25} {:<10} {:<10}",
+        team.rank,
+        team.team.name,
+        team.points,
+        team.form.unwrap_or_else(|| String::from("na"))
+    );
+    println!("{}", formatted_team_row);
 }
 
 fn check_if_in_progress(short_status: &String) -> &str {

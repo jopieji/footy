@@ -8,7 +8,7 @@ use footy::Command;
 
 
 fn main() {
-    println!("\nGlobal Football CLI\n============================");
+    println!("\nGlobal Football CLI\n=================================================");
 
     simple_logger::init_with_level(Level::Info).unwrap();
 
