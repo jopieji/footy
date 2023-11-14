@@ -32,6 +32,8 @@ Also, it is hard coded to my favorite leagues, and only displays today's fixture
 
 `footy live` will display live scores of matches for you full list of leagues
 
+`footy standings` will display the current table for all configured leagues (right now, preconfigured for La Liga, Premier League, Serie A, and Bundesliga)
+
 `footy teams` will allow you to edit your favorited teams
 
 
