@@ -691,7 +691,7 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Schedule => {
-            let output = format!("{} @ {} at {} {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_in_progress(&fixture.fixture.status.short));
+            let output = format!("{} @ {} at {} {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_fixture_in_progress(&fixture.fixture.status.short));
             println!("{}", output);
         },
         CommandType::Teams => {
@@ -731,6 +731,7 @@ fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
 }
 
 fn format_team_row(team: TeamStanding) {
+    if team.rank == 1 { println!("{} Table\n", team.group.unwrap_or_else(|| "".to_string())); } 
     let formatted_team_row = format!(
         "{:<5} {:<25} {:<10} {:<10}",
         team.rank,
@@ -741,7 +742,7 @@ fn format_team_row(team: TeamStanding) {
     println!("{}", formatted_team_row);
 }
 
-fn check_if_in_progress(short_status: &String) -> &str {
+fn check_if_fixture_in_progress(short_status: &String) -> &str {
     if short_status != "TBD" || short_status != "NS" {
         "| In Progress"
     } else {
