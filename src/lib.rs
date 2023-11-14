@@ -119,7 +119,7 @@ struct LeagueData {
     logo: String,
     flag: Option<String>,
     season: u16,
-    round: String,
+    round: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -209,26 +209,47 @@ impl Clone for TeamCSVRecord {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Table {
-    team_standings: Vec<TeamStanding>,
+#[derive(Debug, Deserialize, Serialize)]
+struct StandingsResponse {
+    league: League,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+struct League {
+    standings: Vec<Vec<TeamStanding>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 struct TeamStanding {
-    team_id: u32,
-    team_name: String,
-    rank: u32,
-    points: u32,
-    form: String,
+    all: Stats,
+    away: Stats,
+    description: Option<String>,
+    form: Option<String>,
+    #[serde (rename="goalsDiff")]
+    goals_diff: i32,
+    group: Option<String>,
+    home: Stats,
+    points: i32,
+    rank: i32,
+    status: Option<String>,
+    team: Team,
+    update: Option<String>,
 }
 
-#[derive (Debug, Deserialize)]
-struct TeamStandingWLDInfo {
-    played: u32,
-    win: u32,
-    draw: u32,
-    loss: u32,
+#[derive(Debug, Deserialize, Serialize)]
+struct Stats {
+    draw: i32,
+    goals: GoalStats,
+    lose: i32,
+    played: i32,
+    win: i32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct GoalStats {
+    against: i32,
+    #[serde (rename="for")]
+    for_: i32,
 }
 
 pub async fn run(cmd: Command) {
@@ -238,7 +259,7 @@ pub async fn run(cmd: Command) {
     match result {
         Ok(response_body) => {
             if check_if_teams_command(&cmd) { return; }
-            dbg!(&response_body);
+            //dbg!(&response_body);
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
@@ -411,14 +432,25 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
         res.push(response);
     }
 
+    match parse_standings(&res) {
+        Ok(standings) => {
+            print_standings_by_league(standings);
+        },
+        Err(err) => {
+            println!("Error occurred: {}", err);
+        }
+
+    };
+
+    // todo: edit return item
     Ok(res)
 }
 
 // Serde parsing
-async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box<dyn std::error::Error>> {
+async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box<dyn Error>> {
 
     // logic to step out on add: no fixtures to parse
-    if json_list.len() == 0 {
+    if json_list.is_empty() {
         return Ok(vec![vec![]])
     }
 
@@ -428,11 +460,27 @@ async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box
         let data: Map<String, Value> = serde_json::from_str(&json)?;
         let response = data.get("response").ok_or("Missing 'response' field")?;
         let league_fixture_list: Vec<Fixture> = serde_json::from_value(response.clone())?;
-
         res.push(league_fixture_list);
     }
 
     Ok(res)
+}
+
+fn parse_standings(raw_response: &Vec<String>) -> Result<Vec<Vec<Vec<TeamStanding>>>, Box<dyn Error>> {
+    if raw_response.is_empty() {
+        return Ok(vec![])
+    }
+
+    let mut leagues_list: Vec<Vec<Vec<TeamStanding>>> = Vec::new();
+
+    for json_response in raw_response {
+        let data: Map<String, Value> = serde_json::from_str(json_response)?;
+        let response: &Value = data.get("response").ok_or("Missing 'response' field")?;
+        let standings_response: StandingsResponse = serde_json::from_value(response[0].clone())?;
+        let team_standings: Vec<Vec<TeamStanding>> = standings_response.league.standings;
+        leagues_list.push(team_standings);
+    }
+    Ok(leagues_list)
 }
 
 // Utils Functions
@@ -504,8 +552,7 @@ async fn add_team(team: String) -> Result<(), reqwest::Error> {
             println!("Added {}", t);
         },
         Err(error) => {
-            dbg!("Fail get team");
-            println!("{}", error);
+            dbg!("Not a valid team. Try again.");
         }
     }
 
@@ -549,18 +596,6 @@ fn remove_team_from_csv(team: String) -> Result<(), Box<dyn Error>> {
 
     println!("Removed {} from your teams list", team);
     Ok(())
-}
-
-fn print_all_teams() {
-
-    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
-
-    for res in csv.records() {
-        let row = res.unwrap();
-        let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
-
-        println!("{}", csv_row.name);
-    }
 }
 
 async fn prompt_teams_edit()  {
@@ -665,9 +700,31 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             println!("{}", output);
         },
         CommandType::Standings => {
-            println!("{}", "Implement output for standings");
-            todo!();
+            // Empty: printing done in functions
+        },
+    }
+}
+
+fn print_all_teams() {
+
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
+
+    for res in csv.records() {
+        let row = res.unwrap();
+        let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
+
+        println!("{}", csv_row.name);
+    }
+}
+
+fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
+    for team_standing_info in league_standings {
+        for ts in team_standing_info {
+            for x in ts {
+                println!("{}. {} | Points: {} | Form: {}", x.rank, x.team.name, x.points, x.form.unwrap_or(String::from("na")));
+            }
         }
+        println!("======================================\\n")
     }
 }
 
