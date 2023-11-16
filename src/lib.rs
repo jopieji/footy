@@ -284,15 +284,13 @@ pub async fn run(cmd: Command) {
 async fn match_cmd_and_call(cmd: &Command) -> Result<Vec<String>, String> {
     match cmd.command_type {
         CommandType::Schedule => get_schedule().await.map_err(|err| err.to_string()),
-        CommandType::Scores => {
-            get_teams_fixtures().await.map_err(|err| err.to_string())
-        }
+        CommandType::Scores => get_teams_fixtures().await.map_err(|err| err.to_string()),
         CommandType::Teams => {
             prompt_teams_edit().await;
             Ok(vec![])
         },
         CommandType::Live => get_live_fixtures().await.map_err(|err| err.to_string()),
-        CommandType::Standings => get_standings_for_base_leagues().await.map_err( | err | err.to_string()),
+        CommandType::Standings => get_standings_for_base_leagues().await.map_err( |err| err.to_string()),
     }
 }
 
@@ -499,12 +497,12 @@ async fn get_today_date() -> String {
 
 fn unix_to_cst (unix_timestamp: i64) -> String {
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
-
     format_time(local_time.to_string())
 }
 
 fn unix_to_date (unix_timestamp: i64) -> String {
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
+    dbg!(local_time); // todo: remove
     format_date(local_time.to_string())
 }
 
@@ -815,7 +813,8 @@ mod tests {
 
         assert_eq!(true, check);
     }
-
+    
+    #[test]
     fn test_check_if_standings_command() {
         let cmd: Command = Command {
             command_type: CommandType::Standings,
@@ -824,6 +823,22 @@ mod tests {
 
         assert_eq!(true, check);
     }
+    
+    #[test]
+    fn test_unix_to_cst() {
+        let unix_time = 1700096621;
+        assert_eq!(unix_to_cst(unix_time), "19:03".to_string());
+    }
 
+    #[test]
+    fn test_unix_to_date() {
+        let unix_time = 1700096621;
+        assert_eq!(unix_to_date(unix_time), "11-15".to_string());
+    }
 
+    #[test]
+    fn test_format_time() {
+        let time = format_time("2023-11-15 19:03:41 -06:00".to_string());
+        assert_eq!(time, "19:03".to_string());
+    }
 }
