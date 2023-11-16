@@ -2,7 +2,7 @@ use std::{env, collections::HashMap, io, error::Error, fs::OpenOptions, process}
 
 use csv::{ReaderBuilder, StringRecord};
 
-use chrono::{DateTime, Utc, Local, TimeZone};
+use chrono::{ Utc, Local, TimeZone};
 
 use reqwest::Client;
 
@@ -489,31 +489,19 @@ fn check_if_not_fixtures_trait_type(cmd: &Command) -> bool {
     }
 }
 
-async fn get_today_date() -> String {
-    let now: DateTime<Utc> = Utc::now();
-    let formatted_date = now.format("%Y-%m-%d").to_string();
-    formatted_date
+fn get_today_date() -> String {
+    let now = Utc::now();
+    now.format("%Y-%m-%d").to_string()
 }
 
 fn unix_to_cst (unix_timestamp: i64) -> String {
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
-    format_time(local_time.to_string())
+    local_time.format("%H:%M").to_string()
 }
 
 fn unix_to_date (unix_timestamp: i64) -> String {
     let local_time = Local.timestamp_opt(unix_timestamp, 0).unwrap();
-    dbg!(local_time); // todo: remove
-    format_date(local_time.to_string())
-}
-
-fn format_time(date: String) -> String {
-    let parts: Vec<&str> = date.split_whitespace().collect(); 
-    parts[1][0..5].to_string()
-}
-
-fn format_date(date: String) -> String {
-    let parts: Vec<&str> = date.split_whitespace().collect();
-    parts[0][5..].to_string()
+    local_time.format("%m-%d").to_string()
 }
 
 fn smart_print_date() {
@@ -551,8 +539,8 @@ async fn add_team(team: String) -> Result<(), reqwest::Error> {
             let _ = add_team_to_csv(team_struct.team).unwrap();
             println!("Added {}", t);
         },
-        Err(error) => {
-            dbg!("Not a valid team. Try again.");
+        Err(_error) => {
+            println!("Not a valid team.");
         }
     }
 
@@ -645,7 +633,7 @@ fn get_team_input(opt: char) -> String {
 
 // URL Configuration Functions
 async fn get_fixtures_url_by_league(league_id: u64) -> String {
-    let date = get_today_date().await;
+    let date = get_today_date();
     let season = &date[0..4];
 
     format!("{}league={}&season={}&date={}", BASE_URL, league_id, season, date)
@@ -741,7 +729,7 @@ fn format_team_row(team: TeamStanding) {
 }
 
 fn check_if_fixture_in_progress(short_status: &String) -> &str {
-    if short_status != "TBD" || short_status != "NS" {
+    if short_status != "TBD" && short_status != "NS" {
         "| In Progress"
     } else {
         ""
@@ -753,6 +741,17 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+
+    #[test]
+    fn test_check_if_fixture_in_progress() {
+        let tbd = "TBD".to_string();
+        let ns = "NS".to_string();
+        let other = "other".to_string();
+
+        assert_eq!("", check_if_fixture_in_progress(&tbd));
+        assert_eq!("", check_if_fixture_in_progress(&ns));
+        assert_eq!("| In Progress", check_if_fixture_in_progress(&other));
+    }
 
     #[test]
     fn csv_read() {
@@ -836,9 +835,4 @@ mod tests {
         assert_eq!(unix_to_date(unix_time), "11-15".to_string());
     }
 
-    #[test]
-    fn test_format_time() {
-        let time = format_time("2023-11-15 19:03:41 -06:00".to_string());
-        assert_eq!(time, "19:03".to_string());
-    }
 }
