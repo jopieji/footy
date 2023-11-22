@@ -8,7 +8,6 @@ use reqwest::Client;
 
 use serde::{Serialize, Deserialize};
 use serde_json::{Map, Value};
-
 use colored::Colorize;
 
 const BASE_URL: &str = "https://api-football-v1.p.rapidapi.com/v3/fixtures?";
@@ -406,17 +405,15 @@ async fn try_get_team_id(team: String) -> Result<TeamInfo, Box<dyn Error>> {
 }
 
 async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>> {
-    // can either get leauge id from config list, static list, or from teams favorited
     let key = env::var("FOOTY_API_KEY").unwrap();
     let client = Client::new();
 
-    let static_temp_list = vec![39, 140, 78, 135];
+    let settings = load_settings();
 
     let mut res: Vec<String> = Vec::new();
 
-    for league_id in static_temp_list {
+    for league_id in settings.full_leagues {
         let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
-
         let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
         .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
@@ -439,7 +436,6 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
 
     };
 
-    // todo: edit return item
     Ok(res)
 }
 
@@ -657,13 +653,13 @@ async fn get_team_url(team_id: u64) -> String {
 
 // Settings functions
 fn load_settings() -> Settings {
-    let leagues_vec: Vec<u64> = vec!(39, 135, 78);
-    let full_leagues_vec: Vec<u64> = vec!(2, 39, 45, 48, 140, 143, 78, 88, 135);
+    let pref_leagues_vec: Vec<u64> = vec!(39, 135, 78);
+    let full_leagues_vec: Vec<u64> = vec!(39, 140, 88, 78, 135, 61, 94, 253);
     let teams_vec: HashMap<String, u64> = HashMap::new();
 
     Settings {
         teams: teams_vec,
-        preferred_leagues: leagues_vec,
+        preferred_leagues: pref_leagues_vec,
         full_leagues: full_leagues_vec,
         default: CommandType::Schedule,
     }
@@ -711,6 +707,7 @@ fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
             for team in league_standing {
                 format_team_row(team);
             }
+            println!("\n");
         }
         println!("=================================================\n")
     }
