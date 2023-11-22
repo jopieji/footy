@@ -412,7 +412,7 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
 
     let mut res: Vec<String> = Vec::new();
 
-    for league_id in settings.full_leagues {
+    for league_id in settings.preferred_leagues {
         let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
         let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
