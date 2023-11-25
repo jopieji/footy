@@ -359,7 +359,8 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
 }
 
 async fn get_teams_fixtures() -> Result<Vec<String>, reqwest::Error> {
-    println!("My Teams Fixtures\n");
+    
+    println!("Away                      Home");
     let mut res: Vec<String> = Vec::new();
 
     let teams_file = read_from_teams_csv();
@@ -726,20 +727,33 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             // Empty: printing done in functions
         },
         CommandType::Scores => {
-            let output = format!(
-                "{} @ {}: {} - {} on {}", 
-                get_text_color(&colors_hashmap, &fixture.teams.away),
-                get_text_color(&colors_hashmap, &fixture.teams.home),
-                &fixture.goals.away.unwrap().to_string().bold(), 
-                &fixture.goals.home.unwrap().to_string().bold(),
-                &fixture.fixture.date[5..10],
-            );
-            println!("{}", output);
+            format_score_row(&colors_hashmap, &fixture);
         },
         CommandType::Standings => {
             // Empty: printing done in functions
         },
     }
+}
+
+fn format_score_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture) {
+    // again, output formatting doesn't work for colorized terminal output
+    let t1_len = &fixture.teams.away.name.len();
+    let t2_len = &fixture.teams.home.name.len();
+    let t1_whitespace = 27 - t1_len;
+    let t2_whitespace = 27 - t2_len;
+
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.away));
+    for _i in 1..t1_whitespace { print!(" "); }
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.home));
+    for _i in 1..t2_whitespace { print!(" "); }
+    
+    println!(
+        "{} - {} on {}",
+        &fixture.goals.away.unwrap().to_string().bold(),
+        &fixture.goals.home.unwrap().to_string().bold(),
+        &fixture.fixture.date[5..10],
+    );
+
 }
 
 fn get_text_color(rgb_hash_map: &HashMap<u64, String>, team: &Team) -> String {
