@@ -208,6 +208,21 @@ impl Clone for TeamCSVRecord {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+struct RGBCSVRecord {
+    id: u64,
+    rgb: String,
+}
+
+impl Clone for RGBCSVRecord {
+    fn clone(&self) -> Self {
+        RGBCSVRecord {
+            id: self.id.clone(),
+            rgb: self.rgb.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct StandingsResponse {
     league: League,
@@ -526,6 +541,22 @@ fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Err
     Ok(teams_with_ids)
 }
 
+fn read_ids_and_rgb_from_csv() -> Result<HashMap<u64, String>, Box<dyn std::error::Error>> {
+
+    let mut team_ids_and_rgb: HashMap<u64, String> = HashMap::new();
+    // todo: configure path via env vars
+    let path = "./id_rgb.csv"; 
+    //let path_string = path.unwrap_or("./teams.csv".to_string());
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path)?;
+
+    for res in csv.records() {
+        let row: StringRecord = res?;
+        let rgb_record: RGBCSVRecord = row.deserialize(None)?;
+        team_ids_and_rgb.insert(rgb_record.id, rgb_record.rgb);
+    }
+    Ok(team_ids_and_rgb)
+}
+
 async fn add_team(team: String) -> Result<(), reqwest::Error> {
 
     let t = team.clone();
@@ -667,13 +698,14 @@ fn load_settings() -> Settings {
 
 // Output formatting
 fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
+    let colors_hashmap = read_ids_and_rgb_from_csv().unwrap();
     match cmd.command_type {
         CommandType::Live => {
-            let output = format!("{} @ {}: {} - {} in {}'", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.status.elapsed.unwrap().to_string().bold());
+            let output = format!("{} @ {}: {} - {} in {}'", get_text_color(&colors_hashmap, &fixture.teams.away), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.status.elapsed.unwrap().to_string().bold());
             println!("{}", output);
         },
         CommandType::Schedule => {
-            let output = format!("{} @ {} at {} {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_fixture_in_progress(&fixture.fixture.status.short));
+            let output = format!("{} @ {} at {} {}", get_text_color(&colors_hashmap, &fixture.teams.away), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_fixture_in_progress(&fixture.fixture.status.short));
             println!("{}", output);
         },
         CommandType::Teams => {
@@ -687,6 +719,30 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             // Empty: printing done in functions
         },
     }
+}
+
+fn get_text_color(rgb_hash_map: &HashMap<u64, String>, team: &Team) -> String {
+    // pass in hashmap of colors read from csv and team to format
+    // use color from .get() op in true_color(r, g, b) format
+    let rgb_string = rgb_hash_map.get(&team.id);
+    let rgb_values = parse_rgb_string(rgb_string.unwrap_or(&String::from("(255, 255, 255)")));
+
+    team.name.truecolor(rgb_values[0], rgb_values[1], rgb_values[2]).to_string()
+}
+
+fn parse_rgb_string(rgb_string: &String) -> Vec<u8> {
+    // case for handling white and black teams
+    if !rgb_string.contains("(") {return vec!(255,255,255)}
+
+    let values: Vec<&str> = rgb_string.trim_matches(|c| c == '(' || c == ')')
+        .split(',')
+        .collect();
+
+    let r: u8 = values[0].trim().parse().unwrap();
+    let g: u8 = values[1].trim().parse().unwrap();
+    let b: u8 = values[2].trim().parse().unwrap();
+    
+    vec!(r, g, b)
 }
 
 fn print_all_teams() {
@@ -715,14 +771,27 @@ fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
 
 fn format_team_row(team: TeamStanding) {
     if team.rank == 1 { println!("{} Table\n", team.group.unwrap_or_else(|| "".to_string())); } 
+    let rgb_csv = read_ids_and_rgb_from_csv().unwrap();
+    let colored_team_name_string = get_text_color(&rgb_csv, &team.team);
+    let len_team_name_string = team.team.name.len();
+    let whitespace = 27-len_team_name_string;
+    
     let formatted_team_row = format!(
-        "{:<5} {:<25} {:<10} {:<10}",
+        "{:<5} {:<25}", 
         team.rank,
-        team.team.name,
-        team.points,
-        team.form.unwrap_or_else(|| String::from("na"))
+        &colored_team_name_string,
     );
-    println!("{}", formatted_team_row);
+    print!("{}", formatted_team_row);
+    for _i in 0..whitespace {
+        print!(" ");
+    } 
+
+    let points_and_form = format!(
+        "{:<10} {:<10}",
+        team.points,
+        team.form.unwrap_or_else(|| String::from("na")),
+    );
+    println!("{}", &points_and_form);
 }
 
 fn check_if_fixture_in_progress(short_status: &String) -> &str {
@@ -798,6 +867,21 @@ mod tests {
 
         assert_eq!(original_length-1, new_length);
 
+    }
+
+    #[test]
+    fn test_read_rgb_csv() {
+        let path_string = "./id_rgb.csv";
+        
+        let id_and_rgb = RGBCSVRecord {
+            id: 50,
+            rgb: String::from("(0, 35, 89)"),
+        };
+
+        let mut csv1 = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
+        let records1: Vec<RGBCSVRecord> = csv1.deserialize().collect::<Result<Vec<_>, _>>().unwrap();
+        
+        assert_eq!(id_and_rgb, records1[0]);
     }
 
     #[test]

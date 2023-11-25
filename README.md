@@ -24,6 +24,7 @@ Currently, the app only supports the schedule functionality. Scores and teams su
 
 Also, it is hard coded to my favorite leagues, and only displays today's fixtures. This will be updated to be more customizable in the coming weeks.
 
+There are custom color configurations that only work for a set number of leagues. I built a python tool to grab the max occuring (non-white/black) color of each logo [here](https://github.com/jopieji/py-get-color-of-image.git) if you want to check it out or clone it to get even more leagues configured!
 
 ### Commands
 `footy scores` will display scores of your favorite teams, which can be configured via the CLI (right now, it shows the last two fixtures)
