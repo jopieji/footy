@@ -277,6 +277,7 @@ pub async fn run(cmd: Command) {
                 Ok(fixture_responses) => {
                     for fixture_list in fixture_responses.iter() {
                         if fixture_list.is_empty() { println!("No fixtures :("); break;}
+                        if cmd.command_type == CommandType::Schedule { println!("\n{}", fixture_list[0].league.name.clone()); }
                         for fixture in fixture_list.iter() {
                             print_based_on_command(fixture, &cmd);
                         }
@@ -702,26 +703,10 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
     let colors_hashmap = read_ids_and_rgb_from_csv().unwrap();
     match cmd.command_type {
         CommandType::Live => {
-            let output = format!(
-                "{} @ {}: {} - {} in {}'",
-                get_text_color(&colors_hashmap, &fixture.teams.away),
-                get_text_color(&colors_hashmap, &fixture.teams.home),
-                &fixture.goals.away.unwrap().to_string().bold(),
-                &fixture.goals.home.unwrap().to_string().bold(),
-                &fixture.fixture.status.elapsed.unwrap().to_string().bold()
-            );
-            println!("{}", output);
+            format_live_row(&colors_hashmap, &fixture);
         },
         CommandType::Schedule => {
-            let output = format!(
-                "{} @ {} at {} {}",
-                get_text_color(&colors_hashmap, &fixture.teams.away), 
-                get_text_color(&colors_hashmap, &fixture.teams.home),
-                unix_to_cst(fixture.fixture.timestamp).bold(),
-                check_if_fixture_in_progress(&fixture.fixture.status.short)
-            );
-
-            println!("{}", output);
+            format_schedule_row(&colors_hashmap, &fixture);
         },
         CommandType::Teams => {
             // Empty: printing done in functions
@@ -733,6 +718,27 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
             // Empty: printing done in functions
         },
     }
+}
+
+fn format_live_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture) {
+    // again, output formatting doesn't work for colorized terminal output
+    let t1_len = &fixture.teams.away.name.len();
+    let t2_len = &fixture.teams.home.name.len();
+    let t1_whitespace = 27 - t1_len;
+    let t2_whitespace = 27 - t2_len;
+
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.away));
+    for _i in 1..t1_whitespace { print!(" "); }
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.home));
+    for _i in 1..t2_whitespace { print!(" "); }
+    
+    println!(
+        ": {} - {} in {}'",
+        &fixture.goals.away.unwrap().to_string().bold(),
+        &fixture.goals.home.unwrap().to_string().bold(),
+        &fixture.fixture.status.elapsed.unwrap().to_string().bold(),
+    );
+
 }
 
 fn format_score_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture) {
@@ -754,6 +760,25 @@ fn format_score_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture) {
         &fixture.fixture.date[5..10],
     );
 
+}
+
+fn format_schedule_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture) {
+    // again, output formatting doesn't work for colorized terminal output
+    let t1_len = &fixture.teams.away.name.len();
+    let t2_len = &fixture.teams.home.name.len();
+    let t1_whitespace = 27 - t1_len;
+    let t2_whitespace = 27 - t2_len;
+
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.away));
+    for _i in 1..t1_whitespace { print!(" "); }
+    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.home));
+    for _i in 1..t2_whitespace { print!(" "); }
+    
+    println!(
+        "at {} {}",
+        unix_to_cst(fixture.fixture.timestamp).bold(),
+        check_if_fixture_in_progress(&fixture.fixture.status.short),
+    ); 
 }
 
 fn get_text_color(rgb_hash_map: &HashMap<u64, String>, team: &Team) -> String {
@@ -781,6 +806,8 @@ fn parse_rgb_string(rgb_string: &String) -> Vec<u8> {
 }
 
 fn print_all_teams() {
+    let colors_hashmap = read_ids_and_rgb_from_csv().unwrap();
+
 
     let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
 
@@ -788,7 +815,14 @@ fn print_all_teams() {
         let row = res.unwrap();
         let csv_row: TeamCSVRecord = row.deserialize(None).unwrap();
 
-        println!("{}", csv_row.name);
+        let team = Team {
+            id: csv_row.id,
+            name: csv_row.name,
+            logo: "".to_string(),
+            winner: Some(true),
+        };
+
+        println!("{}", get_text_color(&colors_hashmap, &team));
     }
 }
 
