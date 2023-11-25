@@ -42,6 +42,7 @@ There are custom color configurations that only work for a set number of leagues
 I'm looking into adding: 
 - customizable league adding/deleting for your favorites list (affects `live`, `schedule` commands)
 - schedule lookahead (show upcoming fixtures for teams)
+- prettier printing for all commands
 
 ### Known Bugs
 Teams that share names with other teams have trouble being added. For example, there are two teams that come up for "Arsenal", so Arsenal

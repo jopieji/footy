@@ -701,18 +701,39 @@ fn print_based_on_command(fixture: &Fixture, cmd: &Command) {
     let colors_hashmap = read_ids_and_rgb_from_csv().unwrap();
     match cmd.command_type {
         CommandType::Live => {
-            let output = format!("{} @ {}: {} - {} in {}'", get_text_color(&colors_hashmap, &fixture.teams.away), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.status.elapsed.unwrap().to_string().bold());
+            let output = format!(
+                "{} @ {}: {} - {} in {}'",
+                get_text_color(&colors_hashmap, &fixture.teams.away),
+                get_text_color(&colors_hashmap, &fixture.teams.home),
+                &fixture.goals.away.unwrap().to_string().bold(),
+                &fixture.goals.home.unwrap().to_string().bold(),
+                &fixture.fixture.status.elapsed.unwrap().to_string().bold()
+            );
             println!("{}", output);
         },
         CommandType::Schedule => {
-            let output = format!("{} @ {} at {} {}", get_text_color(&colors_hashmap, &fixture.teams.away), &fixture.teams.home.name.red(), unix_to_cst(fixture.fixture.timestamp).bold(), check_if_fixture_in_progress(&fixture.fixture.status.short));
+            let output = format!(
+                "{} @ {} at {} {}",
+                get_text_color(&colors_hashmap, &fixture.teams.away), 
+                get_text_color(&colors_hashmap, &fixture.teams.home),
+                unix_to_cst(fixture.fixture.timestamp).bold(),
+                check_if_fixture_in_progress(&fixture.fixture.status.short)
+            );
+
             println!("{}", output);
         },
         CommandType::Teams => {
             // Empty: printing done in functions
         },
         CommandType::Scores => {
-            let output = format!("{} @ {}: {} - {} on {}", &fixture.teams.away.name.blue(), &fixture.teams.home.name.red(), &fixture.goals.away.unwrap().to_string().blue(), &fixture.goals.home.unwrap().to_string().red(), &fixture.fixture.date[5..10]);
+            let output = format!(
+                "{} @ {}: {} - {} on {}", 
+                get_text_color(&colors_hashmap, &fixture.teams.away),
+                get_text_color(&colors_hashmap, &fixture.teams.home),
+                &fixture.goals.away.unwrap().to_string().bold(), 
+                &fixture.goals.home.unwrap().to_string().bold(),
+                &fixture.fixture.date[5..10],
+            );
             println!("{}", output);
         },
         CommandType::Standings => {
