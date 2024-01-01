@@ -76,7 +76,7 @@ struct FixtureData {
     date: String,
     timestamp: i64,
     periods: Periods,
-    venue: Venue,
+    venue: Option<Venue>,
     status: Status,
 }
 
@@ -88,7 +88,7 @@ struct Periods {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Venue {
-    id: u64,
+    id: Option<u64>,
     name: String,
     city: String,
 }
