@@ -275,9 +275,9 @@ pub async fn run(cmd: Command) {
             if check_if_not_fixtures_trait_type(&cmd) { return; }
             match parse_fixtures(response_body).await {
                 Ok(fixture_responses) => {
+                    if fixture_responses.iter().len() == 0 { println!("No fixtures :("); return; }
                     for fixture_list in fixture_responses.iter() {
-                        if fixture_list.is_empty() { println!("No fixtures :("); break;}
-                        if cmd.command_type == CommandType::Schedule { println!("\n{}", fixture_list[0].league.name.clone()); }
+                        if cmd.command_type == CommandType::Schedule && !fixture_list.is_empty() { println!("\n{}", fixture_list[0].league.name.clone()); }
                         for fixture in fixture_list.iter() {
                             print_based_on_command(fixture, &cmd);
                         }
@@ -430,7 +430,7 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
     let mut res: Vec<String> = Vec::new();
 
     for league_id in settings.preferred_leagues {
-        let url = format!("{}?league={}&season=2024", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
+        let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
         let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
         .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
@@ -465,7 +465,6 @@ async fn parse_fixtures(json_list: Vec<String>) -> Result<Vec<Vec<Fixture>>, Box
     }
 
     let mut res: Vec<Vec<Fixture>> = Vec::new();
-
     for json in json_list {
         let data: Map<String, Value> = serde_json::from_str(&json)?;
         let response = data.get("response").ok_or("Missing 'response' field")?;
@@ -482,7 +481,6 @@ fn parse_standings(raw_response: &Vec<String>) -> Result<Vec<Vec<Vec<TeamStandin
     }
 
     let mut leagues_list: Vec<Vec<Vec<TeamStanding>>> = Vec::new();
-
     for json_response in raw_response {
         let data: Map<String, Value> = serde_json::from_str(json_response)?;
         let response: &Value = data.get("response").ok_or("Missing 'response' field")?;
@@ -663,8 +661,9 @@ fn get_team_input(opt: char) -> String {
 // URL Configuration Functions
 async fn get_fixtures_url_by_league(league_id: u64) -> String {
     let date = get_today_date();
-    let season = &date[0..4];
-
+    // broken until 24/25 season starts
+    //let season = &date[0..4];
+    let season = 2023;
     format!("{}league={}&season={}&date={}", BASE_URL, league_id, season, date)
 }
 
@@ -680,7 +679,7 @@ async fn get_live_fixtures_url(settings: Settings) -> String {
 }
 
 async fn get_team_url(team_id: u64) -> String {
-    let url = format!("{}season=2024&team={}&last=2", BASE_URL, team_id);
+    let url = format!("{}season=2023&team={}&last=2", BASE_URL, team_id);
     url
 } 
 
