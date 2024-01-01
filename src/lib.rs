@@ -430,7 +430,7 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
     let mut res: Vec<String> = Vec::new();
 
     for league_id in settings.preferred_leagues {
-        let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
+        let url = format!("{}?league={}&season=2024", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
         let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
         .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
@@ -680,7 +680,7 @@ async fn get_live_fixtures_url(settings: Settings) -> String {
 }
 
 async fn get_team_url(team_id: u64) -> String {
-    let url = format!("{}season=2023&team={}&last=2", BASE_URL, team_id);
+    let url = format!("{}season=2024&team={}&last=2", BASE_URL, team_id);
     url
 } 
 
@@ -771,7 +771,7 @@ fn format_schedule_row(colors_hashmap: &HashMap<u64, String>, fixture: &Fixture)
 
     print!("{}", get_text_color(&colors_hashmap, &fixture.teams.away));
     for _i in 1..t1_whitespace { print!(" "); }
-    print!("{}", get_text_color(&colors_hashmap, &fixture.teams.home));
+    print!("at {}", get_text_color(&colors_hashmap, &fixture.teams.home));
     for _i in 1..t2_whitespace { print!(" "); }
     
     println!(
@@ -829,6 +829,7 @@ fn print_all_teams() {
 fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
     for vec in league_standings {
         for league_standing in vec {
+            println!("      Team                            Points         Form");
             for team in league_standing {
                 format_team_row(team);
             }
@@ -864,7 +865,10 @@ fn format_team_row(team: TeamStanding) {
 }
 
 fn check_if_fixture_in_progress(short_status: &String) -> &str {
-    if short_status != "TBD" && short_status != "NS" {
+    if short_status == "FT" {
+        ""
+    }
+    else if short_status != "TBD" && short_status != "NS" {
         "| In Progress"
     } else {
         ""
