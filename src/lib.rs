@@ -832,7 +832,6 @@ fn print_all_teams() {
 fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
     for vec in league_standings {
         for league_standing in vec {
-            println!("      Team                            Points         Form");
             for team in league_standing {
                 format_team_row(team);
             }
@@ -843,7 +842,7 @@ fn print_standings_by_league(league_standings: Vec<Vec<Vec<TeamStanding>>>) {
 }
 
 fn format_team_row(team: TeamStanding) {
-    if team.rank == 1 { println!("{} Table\n", team.group.unwrap_or_else(|| "".to_string())); } 
+    if team.rank == 1 { println!("{} Table\nTeam                            Points         Form", team.group.unwrap_or_else(|| "".to_string())); } 
     let rgb_csv = read_ids_and_rgb_from_csv().unwrap();
     let colored_team_name_string = get_text_color(&rgb_csv, &team.team);
     let len_team_name_string = team.team.name.len();
