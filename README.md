@@ -14,7 +14,7 @@ Still, you need to add an API key to your environment. To obtain an API key, vis
 Open a `.zshrc` or `.bashrc` file and add\n
 `EXPORT FOOTY_API_KEY={your_key_here}`
 
-Set `CONFIG_PATH` to the absolute path of your teams.csv files, and add it to your `.zshrc` or `.bashrc` file with the syntax `EXPORT CONFIG_PATH={abs_path_to_your_teams.csv}`
+Set `CONFIG_PATH` to the absolute path of your teams.csv files, and add it to your `.zshrc` or `.bashrc` file with the syntax `EXPORT CONFIG_PATH={abs_path_to_your_teams.csv}`. Do the same for `RGB_PATH`.
 
 Finally, the command `footy schedule` will be available via your terminal.
 
@@ -43,7 +43,6 @@ I'm looking into adding:
 - customizable league adding/deleting for your favorites list (affects `live`, `schedule` commands)
 - schedule lookahead (show upcoming fixtures for teams)
 - prettier printing for all commands
-
 ### Known Bugs
 Teams that share names with other teams have trouble being added. For example, there are two teams that come up for "Arsenal", so Arsenal
 won't properly be added to your list of teams. I am looking into this, and will find a resolution as soon as possible.

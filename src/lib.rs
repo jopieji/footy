@@ -353,9 +353,11 @@ async fn get_live_fixtures() -> Result<Vec<String>, reqwest::Error> {
         .unwrap()
         .text()
         .await?;
-
-    res.push(response);
     
+    if response.is_empty() { println!("No live fixtures"); }
+    
+    res.push(response);
+     
     Ok(res)
 }
 
@@ -544,10 +546,10 @@ fn read_from_teams_csv() -> Result<HashMap<String, u64>, Box<dyn std::error::Err
 fn read_ids_and_rgb_from_csv() -> Result<HashMap<u64, String>, Box<dyn std::error::Error>> {
 
     let mut team_ids_and_rgb: HashMap<u64, String> = HashMap::new();
-    // todo: configure path via env vars
-    let path = "./id_rgb.csv"; 
-    //let path_string = path.unwrap_or("./teams.csv".to_string());
-    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path)?;
+
+    let path = env::var("RGB_PATH");
+    let path_string = path.unwrap_or("./id_rgb.csv".to_string());
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string)?;
 
     for res in csv.records() {
         let row: StringRecord = res?;
@@ -808,7 +810,9 @@ fn print_all_teams() {
     let colors_hashmap = read_ids_and_rgb_from_csv().unwrap();
 
 
-    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path("./teams.csv").unwrap();
+    let path = env::var("CONFIG_PATH");
+    let path_string = path.unwrap_or("./teams.csv".to_string());
+    let mut csv = ReaderBuilder::new().has_headers(false).delimiter(b',').from_path(path_string).unwrap();
 
     for res in csv.records() {
         let row = res.unwrap();
