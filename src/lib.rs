@@ -432,7 +432,7 @@ async fn get_standings_for_base_leagues() -> Result<Vec<String>,  Box<dyn Error>
     let mut res: Vec<String> = Vec::new();
 
     for league_id in settings.preferred_leagues {
-        let url = format!("{}?league={}&season=2023", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
+        let url = format!("{}?league={}&season=2024", "https://api-football-v1.p.rapidapi.com/v3/standings", league_id);
         let response = client.get(url)
         .header("X-RapidAPI-KEY", &key)
         .header("X-RapidAPI-Host", "api-football-v1.p.rapidapi.com")
@@ -665,7 +665,7 @@ async fn get_fixtures_url_by_league(league_id: u64) -> String {
     let date = get_today_date();
     // broken until 24/25 season starts
     //let season = &date[0..4];
-    let season = 2023;
+    let season = 2024;
     format!("{}league={}&season={}&date={}", BASE_URL, league_id, season, date)
 }
 
@@ -681,13 +681,13 @@ async fn get_live_fixtures_url(settings: Settings) -> String {
 }
 
 async fn get_team_url(team_id: u64) -> String {
-    let url = format!("{}season=2023&team={}&last=2", BASE_URL, team_id);
+    let url = format!("{}season=2024&team={}&last=2", BASE_URL, team_id);
     url
 } 
 
 // Settings functions
 fn load_settings() -> Settings {
-    let pref_leagues_vec: Vec<u64> = vec!(39, 135, 78);
+    let pref_leagues_vec: Vec<u64> = vec!(39, 135, 78, 140);
     let full_leagues_vec: Vec<u64> = vec!(39, 140, 88, 78, 135, 61, 94, 253);
     let teams_vec: HashMap<String, u64> = HashMap::new();
 
